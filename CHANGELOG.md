@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **core:** error responses to `HEAD` requests no longer advertise a `Content-Type`. A HEAD response
+  carries no body (RFC 9110 §9.3.2), but the content type was still set, leaving
+  `content-type: application/xml` (or `application/json`) on a zero-byte response. The Azure SDK for
+  C++ parses an error body whenever the content type contains `xml`/`json` without checking that the
+  buffer is non-empty, so the resulting `std::runtime_error` escaped the `RequestFailedException`
+  constructor and called `terminate()`, crashing any C++ caller that did a `Get Blob Properties` on a
+  missing blob instead of surfacing a 404. Matches Azurite, which gates both the content type and the
+  body on the request method. `x-ms-error-code` is still returned (it is the SDK's documented fallback),
+  `GET` error responses keep the full `<Error>` document, and successful `HEAD` responses keep their
+  documented `Content-Type` ([#184](https://github.com/floci-io/floci-az/issues/184))
+
 ## [0.10.0] - 2026-07-31
 
 ### Added
