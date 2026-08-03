@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **compatibility-tests:** `sdk-test-cpp` — an Azure SDK for C++ compatibility suite (GoogleTest,
+  dependencies via vcpkg) covering blob and queue lifecycle plus the error paths the other SDKs
+  cannot exercise. The C++ SDK parses error bodies without an empty-buffer guard, so a bodyless
+  error response that advertises `content-type: xml`/`json` crashes it where Python, Java and Node
+  are unaffected. Built from source, so the image takes roughly 6 minutes cold and seconds warm; 
+  the runtime stage ships only the static-linked test binary
+
 ### Fixed
 
 - **core:** error responses to `HEAD` requests no longer advertise a `Content-Type`. A HEAD response

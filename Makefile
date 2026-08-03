@@ -1,7 +1,7 @@
 .PHONY: build run run-docker stop stop-docker require-emulator \
-        compat-network compat-build compat-run compat-stop compat-python-image compat-java-image compat-node-image compat-terraform-image compat-opentofu-image compat-azcli-image \
+        compat-network compat-build compat-run compat-stop compat-python-image compat-java-image compat-node-image compat-cpp-image compat-terraform-image compat-opentofu-image compat-azcli-image \
         run-cosmos-mongo run-cosmos-postgresql run-cosmos-cassandra run-cosmos-gremlin run-cosmos-table run-cosmos-nosql run-sql \
-        test test-python-compat test-python-compat-local test-java-compat test-java-compat-local test-node-compat test-node-compat-local test-servicebus-compat \
+        test test-python-compat test-python-compat-local test-java-compat test-java-compat-local test-node-compat test-node-compat-local test-cpp-compat test-servicebus-compat \
         test-blob test-blob-local test-blob-python test-blob-python-local test-blob-java test-blob-java-local test-blob-node test-blob-node-local \
         test-apim-java \
         test-cosmos test-cosmos-mongo test-cosmos-postgresql test-cosmos-cassandra test-cosmos-gremlin test-cosmos-table test-cosmos-nosql test-cosmos-all \
@@ -13,6 +13,7 @@ PID_FILE       = emulator.pid
 PYTHON_DIR     = compatibility-tests/sdk-test-python
 JAVA_DIR       = compatibility-tests/sdk-test-java
 NODE_DIR       = compatibility-tests/sdk-test-node
+CPP_DIR        = compatibility-tests/sdk-test-cpp
 TERRAFORM_DIR  = compatibility-tests/compat-terraform
 OPENTOFU_DIR   = compatibility-tests/compat-opentofu
 AZCLI_DIR      = compatibility-tests/compat-azcli
@@ -22,6 +23,7 @@ FLOCI_AZ_IMAGE = floci-az:test
 PYTHON_IMAGE   = compat-sdk-test-python
 JAVA_IMAGE     = compat-sdk-test-java
 NODE_IMAGE     = compat-sdk-test-node
+CPP_IMAGE      = compat-sdk-test-cpp
 TERRAFORM_IMAGE = compat-terraform
 OPENTOFU_IMAGE  = compat-opentofu
 AZCLI_IMAGE     = compat-azcli
@@ -41,16 +43,18 @@ SUITE_ENV_JAVA   = $(POD_IDENTITY_ENV) \
 SUITE_ENV_NODE   = $(POD_IDENTITY_ENV)
 
 # Per-suite build context and image tag, keyed by suite name.
-SUITES = python java node terraform opentofu azcli
+SUITES = python java node cpp terraform opentofu azcli
 SUITE_DIR_python    = $(PYTHON_DIR)
 SUITE_DIR_java      = $(JAVA_DIR)
 SUITE_DIR_node      = $(NODE_DIR)
+SUITE_DIR_cpp       = $(CPP_DIR)
 SUITE_DIR_terraform = $(TERRAFORM_DIR)
 SUITE_DIR_opentofu  = $(OPENTOFU_DIR)
 SUITE_DIR_azcli     = $(AZCLI_DIR)
 SUITE_IMAGE_python    = $(PYTHON_IMAGE)
 SUITE_IMAGE_java      = $(JAVA_IMAGE)
 SUITE_IMAGE_node      = $(NODE_IMAGE)
+SUITE_IMAGE_cpp       = $(CPP_IMAGE)
 SUITE_IMAGE_terraform = $(TERRAFORM_IMAGE)
 SUITE_IMAGE_opentofu  = $(OPENTOFU_IMAGE)
 SUITE_IMAGE_azcli     = $(AZCLI_IMAGE)
@@ -211,6 +215,11 @@ test-node-compat:
 	@echo "==> Node.js SDK compatibility tests (Docker)"
 	$(call COMPAT_SESSION,node,node,$(SUITE_ENV_NODE),,)
 
+# No -local variant: the toolchain lives in the image, so this suite is Docker-only.
+test-cpp-compat:
+	@echo "==> C++ SDK compatibility tests (Docker)"
+	$(call COMPAT_SESSION,cpp,cpp,,,)
+
 test-python-compat-local:
 	@echo "==> Python SDK compatibility tests (all services, local emulator)"
 	@cd $(PYTHON_DIR) && \
@@ -369,11 +378,12 @@ test-azcli:
 compat-docker:
 	$(MAKE) compat-build
 	$(MAKE) compat-run
-	@mkdir -p $(COMPAT_RESULTS)/python $(COMPAT_RESULTS)/node $(COMPAT_RESULTS)/java $(COMPAT_RESULTS)/terraform $(COMPAT_RESULTS)/opentofu $(COMPAT_RESULTS)/azcli
+	@mkdir -p $(COMPAT_RESULTS)/python $(COMPAT_RESULTS)/node $(COMPAT_RESULTS)/java $(COMPAT_RESULTS)/cpp $(COMPAT_RESULTS)/terraform $(COMPAT_RESULTS)/opentofu $(COMPAT_RESULTS)/azcli
 	@EXIT=0; \
 	$(MAKE) compat-python-image || EXIT=$$?; \
 	if [ $$EXIT -eq 0 ]; then $(MAKE) compat-node-image || EXIT=$$?; fi; \
 	if [ $$EXIT -eq 0 ]; then $(MAKE) compat-java-image || EXIT=$$?; fi; \
+	if [ $$EXIT -eq 0 ]; then $(MAKE) compat-cpp-image || EXIT=$$?; fi; \
 	if [ $$EXIT -eq 0 ]; then $(MAKE) compat-terraform-image || EXIT=$$?; fi; \
 	if [ $$EXIT -eq 0 ]; then $(MAKE) compat-opentofu-image || EXIT=$$?; fi; \
 	if [ $$EXIT -eq 0 ]; then $(MAKE) compat-azcli-image || EXIT=$$?; fi; \
@@ -390,6 +400,11 @@ compat-docker:
 	if [ $$EXIT -eq 0 ]; then \
 		echo "==> Java SDK tests"; \
 		$(call RUN_SUITE,java,java,$(SUITE_ENV_JAVA) -v /var/run/docker.sock:/var/run/docker.sock,,); \
+		EXIT=$$?; \
+	fi; \
+	if [ $$EXIT -eq 0 ]; then \
+		echo "==> C++ SDK tests"; \
+		$(call RUN_SUITE,cpp,cpp,,,); \
 		EXIT=$$?; \
 	fi; \
 	if [ $$EXIT -eq 0 ]; then \
